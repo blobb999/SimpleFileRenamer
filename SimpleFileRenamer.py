@@ -9,6 +9,7 @@ from natsort import natsorted
 
 def rename_files_in_directory(directory, episode_pattern, title_pattern, use_names_txt):
     count = 0
+    special_chars = r'[^A-Za-z0-9_. ()-]+'  # Define special characters here
 
     with open(os.path.join(directory, 'rename_log.txt'), 'w', encoding='utf-8') as log_file:
         if use_names_txt:
@@ -16,9 +17,9 @@ def rename_files_in_directory(directory, episode_pattern, title_pattern, use_nam
                 names = [re.split(r'\s+', line.strip(), maxsplit=1) for line in f.readlines()]
 
         for i, filename in enumerate(natsorted(os.listdir(directory))):
-            if filename.endswith('.mp4'):
+            if filename.endswith('.mp4') or filename.endswith('.mkv') or filename.endswith('.avi'):
+                file_extension = os.path.splitext(filename)[-1]  # Move this line here
                 if use_names_txt and i < len(names):
-                    file_extension = os.path.splitext(filename)[-1]
                     new_name = names[i][0] + " - " + re.sub(r'\s+\(.*\)', '', names[i][1]) + file_extension
                 else:
                     episode_search = re.search(episode_pattern, filename)
@@ -29,13 +30,16 @@ def rename_files_in_directory(directory, episode_pattern, title_pattern, use_nam
                         new_name = f"{episode_number} - {title}{file_extension}"
                     else:
                         new_name = f"{i+1:02d} - {os.path.splitext(filename)[0]}{file_extension}"
+                
+                # Replace special characters
+                new_name = re.sub(special_chars, '', new_name)
+
                 os.rename(os.path.join(directory, filename), os.path.join(directory, new_name))
                 count += 1
                 status_var.set(f"Renamed: {count} files")
                 log_file.write(f"{filename} -> {new_name}\n")
                 root.update()
     return count
-
 
 def undo_renaming():
     directory = folder_path.get()
