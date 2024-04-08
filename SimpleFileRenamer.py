@@ -1,5 +1,7 @@
 import os
 import re
+import shutil
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
@@ -7,9 +9,13 @@ from xml.dom import minidom
 from urllib.parse import quote
 from natsort import natsorted
 
+# Setze das Dateisystemencoding auf UTF-8
+sys.getfilesystemencoding = lambda: 'utf-8'
+
+
 def rename_files_in_directory(directory, episode_pattern, title_pattern, use_names_txt):
     count = 0
-    special_chars = r'[^A-Za-z0-9_. ()-]+'  # Define special characters here
+    special_chars = r'[^A-Za-z0-9_. ()-äöüÄÖÜß]+'  # Define special characters here
 
     with open(os.path.join(directory, 'rename_log.txt'), 'w', encoding='utf-8') as log_file:
         if use_names_txt:
@@ -18,7 +24,7 @@ def rename_files_in_directory(directory, episode_pattern, title_pattern, use_nam
 
         for i, filename in enumerate(natsorted(os.listdir(directory))):
             if filename.endswith('.mp4') or filename.endswith('.mkv') or filename.endswith('.avi'):
-                file_extension = os.path.splitext(filename)[-1]  # Move this line here
+                file_extension = os.path.splitext(filename)[-1]
                 if use_names_txt and i < len(names):
                     new_name = names[i][0] + " - " + re.sub(r'\s+\(.*\)', '', names[i][1]) + file_extension
                 else:
@@ -30,15 +36,20 @@ def rename_files_in_directory(directory, episode_pattern, title_pattern, use_nam
                         new_name = f"{episode_number} - {title}{file_extension}"
                     else:
                         new_name = f"{i+1:02d} - {os.path.splitext(filename)[0]}{file_extension}"
-                
+
                 # Replace special characters
                 new_name = re.sub(special_chars, '', new_name)
 
-                os.rename(os.path.join(directory, filename), os.path.join(directory, new_name))
-                count += 1
-                status_var.set(f"Renamed: {count} files")
-                log_file.write(f"{filename} -> {new_name}\n")
-                root.update()
+                # Move the file with the new name
+                try:
+                    os.rename(os.path.join(directory, filename), os.path.join(directory, new_name))
+                    count += 1
+                    status_var.set(f"Renamed: {count} files")
+                    log_file.write(f"{filename} -> {new_name}\n")
+                    root.update()
+                except OSError as e:
+                    messagebox.showerror("Error", f"Failed to rename {filename}: {e}")
+
     return count
 
 def undo_renaming():
@@ -153,14 +164,6 @@ title_entry.grid(row=2, column=1)
 # Start renaming button
 start_button = tk.Button(root, text="Start Renaming", command=start_renaming)
 start_button.grid(row=3, column=1)
-
-# Help button
-help_button = tk.Button(root, text="Help", command=show_help)
-help_button.grid(row=3, column=2)
-
-# Create playlist button
-create_playlist_button = tk.Button(root, text="Create Playlist", command=create_playlist)
-create_playlist_button.grid(row=4, column=1)
 
 # Status bar
 status_var = tk.StringVar()
